@@ -7,3 +7,6 @@ pydantic==1.8.1
 ruamel.yaml==0.17.4
 jmespath==0.10.0
 requests==2.25.1
+ddt==1.4.2
+pyfakefs==4.4.0
+mock==4.0.3

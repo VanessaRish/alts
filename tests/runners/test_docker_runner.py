@@ -1,7 +1,17 @@
+# -*- mode:python; coding:utf-8; -*-
+# author: Vasily Kleschov <vkleschov@cloudlinux.com>
+# created: 2021-04-22
+
+"""AlmaLinux Test System docker runner unit tests."""
+
 from unittest import TestCase
+from unittest.mock import MagicMock
+
+from pathlib import Path
 
 from ddt import ddt
 from ddt import data, unpack
+from mock import patch, Mock
 # from pyfakefs.fake_filesystem_unittest import TestCase
 
 from alts.worker.runners import DockerRunner
@@ -64,9 +74,17 @@ basics_data = (
     ),
 )
 
+exec_data = (
+    ('yum', 'update'),
+    ('yum', 'install', '-y', 'python3')
+)
+
 
 @ddt
 class TestDockerRunner(TestCase):
+
+    work_dir = Path('/some/test/dir')
+    artifacts_dir = work_dir / 'artifacts'
 
     @data(*basics_data)
     @unpack
@@ -88,13 +106,48 @@ class TestDockerRunner(TestCase):
     #     self.patcher.stop()
     #     self.another_patcher.stop()
 
-    # @patch('alts.runners.base.tempfile.mkdtemp')
-    # def test_working_directory_creation(self, p_work_dir):
-    #     p_work_dir.return_value = self._work_dir
-    #     runner = DockerRunner(*centos_runner_params)
-    #
-    #     with patch('os.path.exists') as exists, patch('os.stat') as stat:
-    #         exists.return_value = False
-    #         stat.return_value = MagicMock()
-    #         runner._create_work_dir()
-    #         self.assertEqual(runner._work_dir, self._work_dir)
+    @data(*basics_data)
+    @unpack
+    @patch('alts.worker.runners.base.tempfile.mkdtemp',
+           MagicMock(return_value=work_dir))
+    def test_working_directory_creation(self, inputs: tuple, expected: dict):
+        runner = DockerRunner(*inputs)
+        runner._create_work_dir()
+        self.assertEqual(runner._work_dir, self.work_dir)
+
+    @data(*basics_data)
+    @unpack
+    @patch('alts.worker.runners.base.tempfile.mkdtemp',
+           MagicMock(return_value=artifacts_dir))
+    @patch('alts.worker.runners.base.os.mkdir', MagicMock())
+    def test_artifacts_directory_creation(self, inputs: tuple, expected: dict):
+        runner = DockerRunner(*centos_8_runner_params)
+        runner._create_artifacts_dir()
+        self.assertEqual(runner._work_dir, self.artifacts_dir)
+
+    @patch('alts.worker.runners.base.tempfile.mkdtemp',
+           MagicMock())
+    @patch('alts.worker.runners.docker.os.path.join', MagicMock())
+    def test_error_render_tf_main_file(self):
+        wrong_params = ('test_id_test', 'test_name', 'test', [], 'test_arch')
+        runner = DockerRunner(*wrong_params)
+        with self.assertRaises(ValueError):
+            runner._render_tf_main_file()
+
+    @data(*basics_data)
+    @unpack
+    @patch('alts.worker.runners.docker.local')
+    def test_exec(self, inputs: tuple, expected: dict, mocked_func):
+        true_arguments = {
+            'args': ('exec', f'docker_{inputs[0]}', 'test'),
+            'retcode': None,
+            'cwd': None
+        }
+        runner = DockerRunner(*inputs)
+        runner._exec(['test'])
+        self.assertEqual(mocked_func.__getitem__.call_count, 1)
+        self.assertEqual(mocked_func.__getitem__.call_args.args, ('docker',))
+        self.assertEqual(mocked_func.__getitem__().run.call_count, 1)
+        self.assertEqual(mocked_func.__getitem__().run.call_args.kwargs,
+                         true_arguments)
+
