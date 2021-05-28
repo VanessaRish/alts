@@ -11,10 +11,10 @@ from pathlib import Path
 
 from ddt import ddt
 from ddt import data, unpack
-from mock import patch, Mock
+from mock import patch
 # from pyfakefs.fake_filesystem_unittest import TestCase
 
-from alts.worker.runners import DockerRunner
+from alts.worker.runners import DockerRunner, OpennebulaRunner
 
 fedora_runner_params = ('test_id_1', 'fedora', '33')
 centos_8_runner_params = ('test_id_2', 'centos', 8)
@@ -74,11 +74,6 @@ basics_data = (
     ),
 )
 
-exec_data = (
-    ('yum', 'update'),
-    ('yum', 'install', '-y', 'python3')
-)
-
 
 @ddt
 class TestDockerRunner(TestCase):
@@ -92,6 +87,7 @@ class TestDockerRunner(TestCase):
         runner = DockerRunner(*inputs)
         self.assertIsInstance(runner.dist_name, str)
         self.assertIsInstance(runner.dist_version, str)
+        self.assertIsInstance(runner._task_id, str)
         for attribute in ('ansible_connection_type', 'repositories',
                           'pkg_manager'):
             self.assertEqual(getattr(runner, attribute), expected[attribute])
@@ -151,3 +147,21 @@ class TestDockerRunner(TestCase):
         self.assertEqual(mocked_func.__getitem__().run.call_args.kwargs,
                          true_arguments)
 
+
+@ddt
+class TestOpenNebulaRunner(TestCase):
+
+    work_dir = Path('/some/test/dir')
+    artifacts_dir = work_dir / 'artifacts'
+
+    @data(*basics_data)
+    @unpack
+    def test_basics(self, inputs: tuple, expected: dict):
+        runner = OpennebulaRunner(*inputs)
+        self.assertIsInstance(runner.dist_name, str)
+        self.assertIsInstance(runner.dist_version, str)
+        self.assertIsInstance(runner._task_id, str)
+        for attribute in ('ansible_connection_type', 'repositories',
+                          'pkg_manager'):
+            expected['ansible_connection_type'] = 'ssh'
+            self.assertEqual(getattr(runner, attribute), expected[attribute])
