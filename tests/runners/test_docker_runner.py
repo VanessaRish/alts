@@ -92,16 +92,6 @@ class TestDockerRunner(TestCase):
                           'pkg_manager'):
             self.assertEqual(getattr(runner, attribute), expected[attribute])
 
-    # def setUp(self) -> None:
-    #     self.patcher = patch('os.stat', MagicMock())
-    #     self.another_patcher = patch('os.path.exists', MagicMock())
-    #     self.patcher.start()
-    #     self.another_patcher.start()
-    #
-    # def tearDown(self) -> None:
-    #     self.patcher.stop()
-    #     self.another_patcher.stop()
-
     @data(*basics_data)
     @unpack
     @patch('alts.worker.runners.base.tempfile.mkdtemp',
@@ -146,6 +136,16 @@ class TestDockerRunner(TestCase):
         self.assertEqual(mocked_func.__getitem__().run.call_count, 1)
         self.assertEqual(mocked_func.__getitem__().run.call_args.kwargs,
                          true_arguments)
+
+    # def setUp(self) -> None:
+    #     self.patcher = patch('os.stat', MagicMock())
+    #     self.another_patcher = patch('os.path.exists', MagicMock())
+    #     self.patcher.start()
+    #     self.another_patcher.start()
+    #
+    # def tearDown(self) -> None:
+    #     self.patcher.stop()
+    #     self.another_patcher.stop()
 
 
 @ddt
